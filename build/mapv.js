@@ -360,17 +360,17 @@ DataSet.prototype.add = function (data, senderId) {
         throw new Error('Unknown dataType');
     }
 
-    this._dataCache = JSON.parse(JSON.stringify(this._data));
+    // this._dataCache = JSON.parse(JSON.stringify(this._data));
 };
 
-DataSet.prototype.reset = function () {
-    this._data = JSON.parse(JSON.stringify(this._dataCache));
-};
+DataSet.prototype.reset = function () {}
+// this._data = JSON.parse(JSON.stringify(this._dataCache));
+
 
 /**
  * get data.
  */
-DataSet.prototype.get = function (args) {
+;DataSet.prototype.get = function (args) {
     args = args || {};
 
     //console.time('copy data time')
@@ -452,7 +452,7 @@ DataSet.prototype.update = function (cbk, condition) {
         }
     }
 
-    this._dataCache = JSON.parse(JSON.stringify(this._data));
+    // this._dataCache = JSON.parse(JSON.stringify(this._data));
 
     this._trigger('change');
 };
@@ -5539,6 +5539,9 @@ var AnimationLayer = function (_BaseLayer) {
             update: _this._canvasUpdate.bind(_this)
         });
 
+        // 动画循环次数
+        _this.animateLoopFrequency = 0;
+
         _this.init(_this.options);
 
         _this.canvasLayer = canvasLayer;
@@ -5565,6 +5568,7 @@ var AnimationLayer = function (_BaseLayer) {
 
             var self = this;
             self.options = options;
+
             this.initDataRange(options);
             this.context = self.options.context || '2d';
 
@@ -5671,11 +5675,8 @@ var AnimationLayer = function (_BaseLayer) {
                     return [x, y];
                 }
             };
-
             this.data = this.dataSet.get(dataGetOptions);
-
             this.processData(this.data);
-
             this.drawAnimation();
         }
     }, {
@@ -5686,7 +5687,6 @@ var AnimationLayer = function (_BaseLayer) {
             if (!data) {
                 return;
             }
-
             ctx.save();
             ctx.globalCompositeOperation = 'destination-out';
             ctx.fillStyle = 'rgba(0, 0, 0, .1)';
@@ -5709,8 +5709,8 @@ var AnimationLayer = function (_BaseLayer) {
             if (this.options.globalCompositeOperation) {
                 ctx.globalCompositeOperation = this.options.globalCompositeOperation;
             }
-
             var options = this.options;
+            var hasCalcAnimateLoopFrequency = false;
             for (var i = 0; i < data.length; i++) {
                 if (data[i].geometry.type === 'Point') {
                     ctx.beginPath();
@@ -5743,15 +5743,10 @@ var AnimationLayer = function (_BaseLayer) {
                         data[i]._index = 0;
                     }
                     var index = data[i]._index;
+
                     ctx.arc(data[i].geometry._coordinates[index][0], data[i].geometry._coordinates[index][1], size, 0, Math.PI * 2, true);
                     ctx.closePath();
-
-                    data[i]._index++;
-
-                    if (data[i]._index >= data[i].geometry._coordinates.length) {
-                        data[i]._index = 0;
-                    }
-
+                    data[i]._index = data[i]._index + (data[i]._step || 1);
                     var strokeStyle = data[i].strokeStyle || options.strokeStyle;
                     var fillStyle = data[i].fillStyle || options.fillStyle || 'yellow';
                     ctx.fillStyle = fillStyle;
@@ -5761,6 +5756,24 @@ var AnimationLayer = function (_BaseLayer) {
                         ctx.strokeStyle = strokeStyle;
                         ctx.stroke();
                     }
+                    if (data[i]._index >= data[i].geometry._coordinates.length) {
+                        if (options.isRound) {
+                            data[i]._step = -1;
+                            data[i]._index = data[i].geometry._coordinates.length - 1;
+                        } else {
+                            data[i]._index = 0;
+                            // 达到了临界值，并且在此次循环中动画次数没有计算，则加1 
+                            !hasCalcAnimateLoopFrequency && this.animateLoopFrequency++;
+                            // 开关关掉，一次循环中只能加一次动画执行次数
+                            hasCalcAnimateLoopFrequency = true;
+                        }
+                    }
+                    if (data[i]._index < 0 && options.isRound) {
+                        data[i]._step = 1;
+                        data[i]._index = 0;
+                        !hasCalcAnimateLoopFrequency && this.animateLoopFrequency++;
+                        hasCalcAnimateLoopFrequency = true;
+                    }
                 }
             }
             ctx.restore();
@@ -5768,9 +5781,29 @@ var AnimationLayer = function (_BaseLayer) {
     }, {
         key: "animate",
         value: function animate() {
+            var _this2 = this;
+
+            var prevAnimateLoopFrequency = this.animateLoopFrequency;
             this.drawAnimation();
             var animateTime = this.options.animateTime || 100;
-            this.timeout = setTimeout(this.animate.bind(this), animateTime);
+            var stayTime = this.options.stayTime;
+            // 动画有停留的时间，并且 循环次数也改变了，则使用停留时间
+            if (stayTime && this.animateLoopFrequency != prevAnimateLoopFrequency) {
+                this.hide();
+                this.timeout = setTimeout(function () {
+                    _this2.canvasLayer.show();
+                    _this2.animate();
+                }, stayTime);
+            } else {
+                this.timeout = setTimeout(this.animate.bind(this), animateTime);
+            }
+            var timesTimer = null;
+            if (this.options.times !== undefined && this.animateLoopFrequency >= this.options.times) {
+                this.stop();
+                timesTimer && clearTimeout(timesTimer);
+                timesTimer = setTimeout(this.hide.bind(this), animateTime);
+                return;
+            }
         }
     }, {
         key: "start",
@@ -9173,6 +9206,7 @@ exports.cesiumMapLayer = mapVLayer$3;
 exports.DataSet = DataSet;
 exports.geojson = geojson;
 exports.csv = csv;
+exports.BaseLayer = BaseLayer;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

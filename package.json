@@ -2,7 +2,7 @@
   "name": "mapv",
   "version": "2.0.62",
   "description": "a library of geography visualization",
-  "main": "build/mapv.js",
+  "main": "./index.js",
   "scripts": {
     "prepublish": "npm run build && npm run mini",
     "mini": "npm run build && uglifyjs build/mapv.js -c -m -o build/mapv.min.js",

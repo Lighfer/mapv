@@ -71,11 +71,11 @@ DataSet.prototype.add = function (data, senderId) {
         throw new Error('Unknown dataType');
     }
 
-    this._dataCache = JSON.parse(JSON.stringify(this._data));
+    // this._dataCache = JSON.parse(JSON.stringify(this._data));
 };
 
 DataSet.prototype.reset = function () {
-    this._data = JSON.parse(JSON.stringify(this._dataCache));
+    // this._data = JSON.parse(JSON.stringify(this._dataCache));
 }
 
 /**
@@ -164,7 +164,7 @@ DataSet.prototype.update = function (cbk, condition) {
         }
     }
 
-    this._dataCache = JSON.parse(JSON.stringify(this._data));
+    // this._dataCache = JSON.parse(JSON.stringify(this._data));
 
     this._trigger('change');
 };
